@@ -5,8 +5,6 @@ const xqueue = require('../')
 
 describe('base', () => {
   let redisClient = redis.createClient(process.env.REDIS_CONNECT_TEST)
-  redisClient.flushall()
-
   let emitter = new xqueue.Emitter({
     redisClient: redisClient,
   })
@@ -81,6 +79,13 @@ describe('emit', () => {
   it('on hello2', (done) => {
     let instance = emitter.on(type, encoding, (reply) => {
       assert.equal(reply.msg, 'hello2')
+      instance.stop()
+      done(null)
+    })
+  })
+  it('on hello3', (done) => {
+    let instance = emitter.on(type, encoding, (reply) => {
+      assert.equal(reply.msg, 'hello3')
       instance.stop()
       done(null)
     })
