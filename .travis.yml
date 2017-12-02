@@ -1,0 +1,7 @@
+language: node_js
+node_js:
+  - 4.0
+services:
+  - redis-server
+env:
+  - REDIS_CONNECT_TEST=redis://127.0.0.1:6379
