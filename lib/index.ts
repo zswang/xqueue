@@ -1,15 +1,11 @@
 import * as redis from 'redis'
-import * as crypto from 'crypto'
-
 export interface IProcessHandler {
   (data: object | string)
 }
-
 export interface IProcessInstance {
   readonly freed: boolean;
   stop: { () }
 }
-
 export interface IEmitterOptions {
   /**
    * Redis 短连字符串，短连接用，如："redis://host/?db=0"
@@ -40,12 +36,19 @@ export interface IEmitterOptions {
    */
   debug?: boolean
 }
-
+/**
+ * @file xqueue
+ *
+ * Emitter at Redis queue
+ * @author
+ *   zswang (http://weibo.com/zswang)
+ * @version 0.0.3
+ * @date 2017-12-02
+ */
 export class Emitter {
   options: IEmitterOptions
   buffer: { type: string, data: object, resolve: Function, reject: Function }[] = []
   emitting: boolean = false
-
   constructor(options: IEmitterOptions) {
     this.options = {
       ...{
@@ -57,7 +60,6 @@ export class Emitter {
       }, ...options
     }
   }
-
   /**
    * 派发事件
    * 
@@ -76,7 +78,6 @@ export class Emitter {
         })
       })
     }
-
     let next = () => {
       this.emitting = false
       let item = this.buffer.shift()
@@ -90,7 +91,6 @@ export class Emitter {
         })
       }
     }
-
     //标记发送中
     this.emitting = true  
     return new Promise((resolve, reject) => {
@@ -99,7 +99,7 @@ export class Emitter {
       redisClient.smembers(`${this.options.prefix}:listener:${type}`, (err, results) => {
         if (err) {
           if (this.options.debug) {
-            console.error('xqueue/src/index.ts:102', err)
+            console.error('xqueue/src/index.ts:120', err)
           }
           reject(err)
           next()
@@ -111,7 +111,7 @@ export class Emitter {
               redisClient.exists(`${this.options.prefix}:encoding:${type}:${encoding}:ttl`, (err, result) => {
                 if (err) {
                   if (this.options.debug) {
-                    console.error('xqueue/src/index.ts:114', err)
+                    console.error('xqueue/src/index.ts:132', err)
                   }
                   reject(err)
                   next()
@@ -121,7 +121,7 @@ export class Emitter {
                   redisClient.srem(`${this.options.prefix}:listener:${type}`, `${encoding}`, (err) => {
                     if (err) {
                       if (this.options.debug) {
-                        console.error('xqueue/src/index.ts:124', err)
+                        console.error('xqueue/src/index.ts:142', err)
                       }
                       reject(err)
                       next()
@@ -135,7 +135,7 @@ export class Emitter {
                 redisClient.rpush(`${this.options.prefix}:encoding:${type}:${encoding}`, content, (err, result) => {
                   if (err) {
                     if (this.options.debug) {
-                      console.error('xqueue/src/index.ts:138', err)
+                      console.error('xqueue/src/index.ts:156', err)
                     }
                     reject(err)
                     next()
@@ -155,7 +155,6 @@ export class Emitter {
       })
     })
   }
-
   /**
    * 接收事件
    * 
@@ -165,13 +164,11 @@ export class Emitter {
    */
   on(type: string, encoding: string, fn: IProcessHandler): IProcessInstance {
     let redisClient = this.options.redisClient || (this.options.redisConnect && redis.createClient(this.options.redisConnect))
-
     let lastExpire = Date.now()
     redisClient.setex(`${this.options.prefix}:encoding:${type}:${encoding}:ttl`, this.options.expire, ':nil')
     redisClient.sadd(`${this.options.prefix}:listener:${type}`, `${encoding}`)
     let timer: NodeJS.Timer
     let freed: boolean = false
-
     let next = () => {
       if (freed) {
         return
@@ -181,11 +178,10 @@ export class Emitter {
         redisClient.setex(`${this.options.prefix}:encoding:${type}:${encoding}:ttl`, this.options.expire, ':nil')
         lastExpire = now
       }
-
       redisClient.lpop(`${this.options.prefix}:encoding:${type}:${encoding}`, (err, result) => {
         if (err) {
           if (this.options.debug) {
-            console.error('xqueue/src/index.ts:188', err)
+            console.error('xqueue/src/index.ts:206', err)
           }
           timer = setTimeout(next, this.options.sleep * 5)
           return
@@ -195,22 +191,20 @@ export class Emitter {
           return
         }
         if (this.options.debug) {
-          console.log('xqueue/src/index.ts:198 lpop', result)
+          console.log('xqueue/src/index.ts:216 lpop', result)
         }
         try {
           let content = this.options.dataType === 'json' ? JSON.parse(result) : String(result)
           fn(content)
-
         } catch (ex) {
           if (this.options.debug) {
-            console.log('xqueue/src/index.ts:206', ex)
+            console.log('xqueue/src/index.ts:224', ex)
           }
         } finally {
           next()
         }
       })
     }
-
     timer = setTimeout(next, this.options.sleep)
     let instance = {
       get freed(): boolean {
@@ -230,4 +224,3 @@ export class Emitter {
     return instance
   }
 }
-

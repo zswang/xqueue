@@ -1,5 +1,4 @@
 import * as redis from 'redis'
-import * as crypto from 'crypto'
 
 export interface IProcessHandler {
   (data: object | string)
@@ -40,6 +39,25 @@ export interface IEmitterOptions {
    */
   debug?: boolean
 }
+
+/*<jdists encoding="ejs" data="../package.json">*/
+/**
+ * @file <%- name %>
+ *
+ * <%- description %>
+ * @author
+     <% (author instanceof Array ? author : [author]).forEach(function (item) { %>
+ *   <%- item.name %> (<%- item.url %>)
+     <% }); %>
+ * @version <%- version %>
+     <% var now = new Date() %>
+ * @date <%- [
+      now.getFullYear(),
+      now.getMonth() + 101,
+      now.getDate() + 100
+    ].join('-').replace(/-1/g, '-') %>
+ */
+/*</jdists>*/
 
 export class Emitter {
   options: IEmitterOptions

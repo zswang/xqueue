@@ -38,6 +38,15 @@ export interface IEmitterOptions {
      */
     debug?: boolean;
 }
+/**
+ * @file xqueue
+ *
+ * Emitter at Redis queue
+ * @author
+ *   zswang (http://weibo.com/zswang)
+ * @version 0.0.3
+ * @date 2017-12-02
+ */
 export declare class Emitter {
     options: IEmitterOptions;
     buffer: {
