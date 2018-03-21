@@ -45,7 +45,7 @@ export interface IEmitterOptions {
  * @author
  *   zswang (http://weibo.com/zswang)
  * @version 0.0.3
- * @date 2017-12-02
+ * @date 2018-03-21
  */
 export declare class Emitter {
     options: IEmitterOptions;
@@ -63,7 +63,7 @@ export declare class Emitter {
      * @param type 事件类型
      * @param data 数据
      */
-    emit(type: string, data: object): Promise<{}>;
+    emit(type: string, data: object): Promise<any>;
     /**
      * 接收事件
      *
