@@ -10,13 +10,9 @@ export interface IProcessInstance {
 }
 export interface IEmitterOptions {
     /**
-     * Redis 短连字符串，短连接用，如："redis://host/?db=0"
-     */
-    redisConnect?: string;
-    /**
      * Redis 客户端，长连接用
      */
-    redisClient?: redis.RedisClient;
+    redisClient: string | redis.RedisClient;
     /**
      * 数据类型
      */
@@ -44,8 +40,8 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.0.3
- * @date 2018-03-21
+ * @version 0.1.0
+ * @date 2018-03-22
  */
 export declare class Emitter {
     options: IEmitterOptions;
@@ -56,6 +52,7 @@ export declare class Emitter {
         reject: Function;
     }[];
     emitting: boolean;
+    redisClient: redis.RedisClient;
     constructor(options: IEmitterOptions);
     /**
      * 派发事件
@@ -72,4 +69,5 @@ export declare class Emitter {
      * @param fn 回调函数
      */
     on(type: string, encoding: string, fn: IProcessHandler): IProcessInstance;
+    end(flush?: boolean): void;
 }

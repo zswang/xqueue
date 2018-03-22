@@ -8,7 +8,7 @@ Emitter at Redis queue
 
 * emit(type, data)
 
-```
+```redis
 SMEMBERS xqueue:emitter:listener:${type}
 RPUSHX xqueue:emitter:encoding:${type}:${encoding}
 SREM xqueue:emitter:encoding:${type}:${encoding}
@@ -16,7 +16,7 @@ SREM xqueue:emitter:encoding:${type}:${encoding}
 
 * on(type, encoding, fn)
 
-```
+```redis
 RPUSH xqueue:emitter:encoding:${type}:${encoding} :nil
 EXPIRE xqueue:emitter:encoding:${type}:${encoding} ${expire}
 SADD xqueue:emitter:listener:${type} ${encoding}

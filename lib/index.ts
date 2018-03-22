@@ -8,13 +8,9 @@ export interface IProcessInstance {
 }
 export interface IEmitterOptions {
   /**
-   * Redis 短连字符串，短连接用，如："redis://host/?db=0"
-   */
-  redisConnect?: string
-  /**
    * Redis 客户端，长连接用
    */
-  redisClient?: redis.RedisClient
+  redisClient: string | redis.RedisClient
   /**
    * 数据类型
    */
@@ -42,8 +38,8 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.0.3
- * @date 2018-03-21
+ * @version 0.1.0
+ * @date 2018-03-22
  */
 export class Emitter {
   options: IEmitterOptions
@@ -54,6 +50,7 @@ export class Emitter {
     reject: Function
   }[] = []
   emitting: boolean = false
+  redisClient: redis.RedisClient
   constructor(options: IEmitterOptions) {
     this.options = {
       ...{
@@ -64,6 +61,11 @@ export class Emitter {
         dataType: 'json',
       },
       ...options,
+    }
+    if (typeof options.redisClient === 'string') {
+      this.redisClient = redis.createClient(options.redisClient)
+    } else {
+      this.redisClient = options.redisClient
     }
   }
   /**
@@ -102,17 +104,13 @@ export class Emitter {
     //标记发送中
     this.emitting = true
     return new Promise((resolve, reject) => {
-      let redisClient =
-        this.options.redisClient ||
-        (this.options.redisConnect &&
-          redis.createClient(this.options.redisConnect))
       // 获取该类型监听类型列表
-      redisClient.smembers(
+      this.redisClient.smembers(
         `${this.options.prefix}:listener:${type}`,
         (err, results) => {
           if (err) {
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:133', err)
+              console.error('xqueue/src/index.ts:131', err)
             }
             reject(err)
             next()
@@ -122,12 +120,12 @@ export class Emitter {
             Promise.all(
               results.map(encoding => {
                 return new Promise((resolve, reject) => {
-                  redisClient.exists(
+                  this.redisClient.exists(
                     `${this.options.prefix}:encoding:${type}:${encoding}:ttl`,
                     (err, result) => {
                       if (err) {
                         if (this.options.debug) {
-                          console.error('xqueue/src/index.ts:148', err)
+                          console.error('xqueue/src/index.ts:146', err)
                         }
                         reject(err)
                         next()
@@ -135,20 +133,20 @@ export class Emitter {
                       }
                       if (result === 0) {
                         // 移除失效的成员
-                        redisClient.srem(
+                        this.redisClient.srem(
                           `${this.options.prefix}:listener:${type}`,
                           `${encoding}`,
                           err => {
                             if (err) {
                               if (this.options.debug) {
-                                console.error('xqueue/src/index.ts:162', err)
+                                console.error('xqueue/src/index.ts:160', err)
                               }
                               reject(err)
                               next()
                               return
                             }
                             resolve(`${encoding}:${result}`)
-                          },
+                          }
                         )
                         return
                       }
@@ -156,33 +154,30 @@ export class Emitter {
                         this.options.dataType === 'json'
                           ? JSON.stringify(data)
                           : String(data)
-                      redisClient.rpush(
+                      this.redisClient.rpush(
                         `${this.options.prefix}:encoding:${type}:${encoding}`,
                         content,
                         (err, result) => {
                           if (err) {
                             if (this.options.debug) {
-                              console.error('xqueue/src/index.ts:183', err)
+                              console.error('xqueue/src/index.ts:181', err)
                             }
                             reject(err)
                             next()
                             return
                           }
                           resolve(`${encoding}:${result}`)
-                        },
+                        }
                       )
-                    },
+                    }
                   )
                 })
-              }),
+              })
             ).then(() => {
-              if (!this.options.redisClient) {
-                redisClient.end(true)
-              }
               next()
-            }),
+            })
           )
-        },
+        }
       )
     })
   }
@@ -194,17 +189,16 @@ export class Emitter {
    * @param fn 回调函数
    */
   on(type: string, encoding: string, fn: IProcessHandler): IProcessInstance {
-    let redisClient =
-      this.options.redisClient ||
-      (this.options.redisConnect &&
-        redis.createClient(this.options.redisConnect))
     let lastExpire = Date.now()
-    redisClient.setex(
+    this.redisClient.setex(
       `${this.options.prefix}:encoding:${type}:${encoding}:ttl`,
       this.options.expire,
-      ':nil',
+      ':nil'
     )
-    redisClient.sadd(`${this.options.prefix}:listener:${type}`, `${encoding}`)
+    this.redisClient.sadd(
+      `${this.options.prefix}:listener:${type}`,
+      `${encoding}`
+    )
     let timer: NodeJS.Timer
     let freed: boolean = false
     let next = () => {
@@ -213,19 +207,19 @@ export class Emitter {
       }
       let now = Date.now()
       if (now - lastExpire < this.options.expire * 0.25) {
-        redisClient.setex(
+        this.redisClient.setex(
           `${this.options.prefix}:encoding:${type}:${encoding}:ttl`,
           this.options.expire,
-          ':nil',
+          ':nil'
         )
         lastExpire = now
       }
-      redisClient.lpop(
+      this.redisClient.lpop(
         `${this.options.prefix}:encoding:${type}:${encoding}`,
         (err, result) => {
           if (err) {
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:250', err)
+              console.error('xqueue/src/index.ts:243', err)
             }
             timer = setTimeout(next, this.options.sleep * 5)
             return
@@ -235,7 +229,7 @@ export class Emitter {
             return
           }
           if (this.options.debug) {
-            console.log('xqueue/src/index.ts:260 lpop', result)
+            console.log('xqueue/src/index.ts:253 lpop', result)
           }
           try {
             let content =
@@ -245,12 +239,12 @@ export class Emitter {
             fn(content)
           } catch (ex) {
             if (this.options.debug) {
-              console.log('xqueue/src/index.ts:270', ex)
+              console.log('xqueue/src/index.ts:263', ex)
             }
           } finally {
             next()
           }
-        },
+        }
       )
     }
     timer = setTimeout(next, this.options.sleep)
@@ -264,11 +258,13 @@ export class Emitter {
         }
         freed = true
         clearTimeout(timer)
-        if (!this.options.redisClient) {
-          redisClient.end(true)
-        }
       },
     }
     return instance
+  }
+  end(flush?: boolean) {
+    if (typeof this.options.redisClient === 'string') {
+      this.redisClient.end(flush)
+    }
   }
 }

@@ -11,13 +11,9 @@ export interface IProcessInstance {
 
 export interface IEmitterOptions {
   /**
-   * Redis 短连字符串，短连接用，如："redis://host/?db=0"
-   */
-  redisConnect?: string
-  /**
    * Redis 客户端，长连接用
    */
-  redisClient?: redis.RedisClient
+  redisClient: string | redis.RedisClient
   /**
    * 数据类型
    */
@@ -68,6 +64,7 @@ export class Emitter {
     reject: Function
   }[] = []
   emitting: boolean = false
+  redisClient: redis.RedisClient
 
   constructor(options: IEmitterOptions) {
     this.options = {
@@ -79,6 +76,11 @@ export class Emitter {
         dataType: 'json',
       },
       ...options,
+    }
+    if (typeof options.redisClient === 'string') {
+      this.redisClient = redis.createClient(options.redisClient)
+    } else {
+      this.redisClient = options.redisClient
     }
   }
 
@@ -120,12 +122,8 @@ export class Emitter {
     //标记发送中
     this.emitting = true
     return new Promise((resolve, reject) => {
-      let redisClient =
-        this.options.redisClient ||
-        (this.options.redisConnect &&
-          redis.createClient(this.options.redisConnect))
       // 获取该类型监听类型列表
-      redisClient.smembers(
+      this.redisClient.smembers(
         `${this.options.prefix}:listener:${type}`,
         (err, results) => {
           if (err) {
@@ -140,7 +138,7 @@ export class Emitter {
             Promise.all(
               results.map(encoding => {
                 return new Promise((resolve, reject) => {
-                  redisClient.exists(
+                  this.redisClient.exists(
                     `${this.options.prefix}:encoding:${type}:${encoding}:ttl`,
                     (err, result) => {
                       if (err) {
@@ -153,7 +151,7 @@ export class Emitter {
                       }
                       if (result === 0) {
                         // 移除失效的成员
-                        redisClient.srem(
+                        this.redisClient.srem(
                           `${this.options.prefix}:listener:${type}`,
                           `${encoding}`,
                           err => {
@@ -166,7 +164,7 @@ export class Emitter {
                               return
                             }
                             resolve(`${encoding}:${result}`)
-                          },
+                          }
                         )
                         return
                       }
@@ -174,7 +172,7 @@ export class Emitter {
                         this.options.dataType === 'json'
                           ? JSON.stringify(data)
                           : String(data)
-                      redisClient.rpush(
+                      this.redisClient.rpush(
                         `${this.options.prefix}:encoding:${type}:${encoding}`,
                         content,
                         (err, result) => {
@@ -187,20 +185,17 @@ export class Emitter {
                             return
                           }
                           resolve(`${encoding}:${result}`)
-                        },
+                        }
                       )
-                    },
+                    }
                   )
                 })
-              }),
+              })
             ).then(() => {
-              if (!this.options.redisClient) {
-                redisClient.end(true)
-              }
               next()
-            }),
+            })
           )
-        },
+        }
       )
     })
   }
@@ -213,18 +208,16 @@ export class Emitter {
    * @param fn 回调函数
    */
   on(type: string, encoding: string, fn: IProcessHandler): IProcessInstance {
-    let redisClient =
-      this.options.redisClient ||
-      (this.options.redisConnect &&
-        redis.createClient(this.options.redisConnect))
-
     let lastExpire = Date.now()
-    redisClient.setex(
+    this.redisClient.setex(
       `${this.options.prefix}:encoding:${type}:${encoding}:ttl`,
       this.options.expire,
-      ':nil',
+      ':nil'
     )
-    redisClient.sadd(`${this.options.prefix}:listener:${type}`, `${encoding}`)
+    this.redisClient.sadd(
+      `${this.options.prefix}:listener:${type}`,
+      `${encoding}`
+    )
     let timer: NodeJS.Timer
     let freed: boolean = false
 
@@ -234,15 +227,15 @@ export class Emitter {
       }
       let now = Date.now()
       if (now - lastExpire < this.options.expire * 0.25) {
-        redisClient.setex(
+        this.redisClient.setex(
           `${this.options.prefix}:encoding:${type}:${encoding}:ttl`,
           this.options.expire,
-          ':nil',
+          ':nil'
         )
         lastExpire = now
       }
 
-      redisClient.lpop(
+      this.redisClient.lpop(
         `${this.options.prefix}:encoding:${type}:${encoding}`,
         (err, result) => {
           if (err) {
@@ -272,7 +265,7 @@ export class Emitter {
           } finally {
             next()
           }
-        },
+        }
       )
     }
 
@@ -287,11 +280,14 @@ export class Emitter {
         }
         freed = true
         clearTimeout(timer)
-        if (!this.options.redisClient) {
-          redisClient.end(true)
-        }
       },
     }
     return instance
+  }
+
+  end(flush?: boolean) {
+    if (typeof this.options.redisClient === 'string') {
+      this.redisClient.end(flush)
+    }
   }
 }
