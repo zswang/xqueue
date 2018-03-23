@@ -12,23 +12,23 @@ export interface IEmitterOptions {
    */
   redisClient: string | redis.RedisClient
   /**
-   * 数据类型
+   * 数据类型 The default value is 'json'
    */
-  dataType: 'json' | 'string'
+  dataType?: 'json' | 'string'
   /**
    * 键值前缀
    */
   prefix?: string
   /**
-   * 读取到空队列的空闲时间，单位：毫秒
+   * 读取到空队列的空闲时间，单位：秒 The default value is 1
    */
   sleep?: number
   /**
-   * 队列有效期，单位：秒
+   * 队列有效期，单位：秒 The default value is 60 * 60
    */
   expire?: number
   /**
-   * 是否打印调试信息
+   * 是否打印调试信息 The default value is false
    */
   debug?: boolean
 }
@@ -38,12 +38,20 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.1.0
- * @date 2018-03-22
+ * @version 0.1.1
+ * @date 2018-03-23
  */
+export interface IEmitReturn {
+  command: string
+  encoding: string
+  result: number
+}
 export class Emitter {
   options: IEmitterOptions
-  buffer: {
+  /**
+   * 处理队列
+   */
+  emitQueue: {
     type: string
     data: object
     resolve: Function
@@ -55,7 +63,7 @@ export class Emitter {
     this.options = {
       ...{
         prefix: 'xqueue:emitter',
-        sleep: 1000,
+        sleep: 1,
         expire: 60 * 60,
         debug: false,
         dataType: 'json',
@@ -74,21 +82,21 @@ export class Emitter {
    * @param type 事件类型
    * @param data 数据
    */
-  emit(type: string, data: object): Promise<any> {
+  emit(type: string, data: object): Promise<IEmitReturn[]> {
     // 队列发送中
     if (this.emitting) {
       return new Promise((resolve, reject) => {
-        this.buffer.push({
+        this.emitQueue.push({
           type: type,
           data: data,
           resolve: resolve,
           reject: reject,
         })
-      })
+      }) as Promise<IEmitReturn[]>
     }
     let next = () => {
       this.emitting = false
-      let item = this.buffer.shift()
+      let item = this.emitQueue.shift()
       if (item) {
         this.emit(item.type, item.data)
           .then(reply => {
@@ -110,73 +118,80 @@ export class Emitter {
         (err, results) => {
           if (err) {
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:131', err)
+              console.error('xqueue/src/index.ts:140', err)
             }
             reject(err)
             next()
             return
           }
-          resolve(
-            Promise.all(
-              results.map(encoding => {
-                return new Promise((resolve, reject) => {
-                  this.redisClient.exists(
-                    `${this.options.prefix}:encoding:${type}:${encoding}:ttl`,
-                    (err, result) => {
-                      if (err) {
-                        if (this.options.debug) {
-                          console.error('xqueue/src/index.ts:146', err)
-                        }
-                        reject(err)
-                        next()
-                        return
+          resolve(Promise.all(
+            results.map(encoding => {
+              return new Promise((resolve, reject) => {
+                this.redisClient.exists(
+                  `${this.options.prefix}:encoding:${type}:${encoding}:ttl`,
+                  (err, result) => {
+                    if (err) {
+                      if (this.options.debug) {
+                        console.error('xqueue/src/index.ts:154', err)
                       }
-                      if (result === 0) {
-                        // 移除失效的成员
-                        this.redisClient.srem(
-                          `${this.options.prefix}:listener:${type}`,
-                          `${encoding}`,
-                          err => {
-                            if (err) {
-                              if (this.options.debug) {
-                                console.error('xqueue/src/index.ts:160', err)
-                              }
-                              reject(err)
-                              next()
-                              return
-                            }
-                            resolve(`${encoding}:${result}`)
-                          }
-                        )
-                        return
-                      }
-                      let content =
-                        this.options.dataType === 'json'
-                          ? JSON.stringify(data)
-                          : String(data)
-                      this.redisClient.rpush(
-                        `${this.options.prefix}:encoding:${type}:${encoding}`,
-                        content,
-                        (err, result) => {
+                      reject(err)
+                      next()
+                      return
+                    }
+                    if (result === 0) {
+                      // 移除失效的成员
+                      this.redisClient.srem(
+                        `${this.options.prefix}:listener:${type}`,
+                        `${encoding}`,
+                        err => {
                           if (err) {
                             if (this.options.debug) {
-                              console.error('xqueue/src/index.ts:181', err)
+                              console.error('xqueue/src/index.ts:168', err)
                             }
                             reject(err)
                             next()
                             return
                           }
-                          resolve(`${encoding}:${result}`)
+                          resolve({
+                            command: 'srem',
+                            encoding: encoding,
+                            result: result,
+                          })
                         }
                       )
+                      return
                     }
-                  )
-                })
+                    let content =
+                      this.options.dataType === 'json'
+                        ? JSON.stringify(data)
+                        : String(data)
+                    this.redisClient.rpush(
+                      `${this.options.prefix}:encoding:${type}:${encoding}`,
+                      content,
+                      (err, result) => {
+                        if (err) {
+                          if (this.options.debug) {
+                            console.error('xqueue/src/index.ts:193', err)
+                          }
+                          reject(err)
+                          next()
+                          return
+                        }
+                        resolve({
+                          command: 'rpush',
+                          encoding: encoding,
+                          result: result,
+                        })
+                      }
+                    )
+                  }
+                )
               })
-            ).then(() => {
-              next()
             })
-          )
+          ).then(reply => {
+            next()
+            return reply
+          }) as Promise<IEmitReturn[]>)
         }
       )
     })
@@ -206,7 +221,7 @@ export class Emitter {
         return
       }
       let now = Date.now()
-      if (now - lastExpire < this.options.expire * 0.25) {
+      if (now - lastExpire > this.options.expire * 1000 * 0.75) {
         this.redisClient.setex(
           `${this.options.prefix}:encoding:${type}:${encoding}:ttl`,
           this.options.expire,
@@ -219,17 +234,17 @@ export class Emitter {
         (err, result) => {
           if (err) {
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:243', err)
+              console.error('xqueue/src/index.ts:259', err)
             }
-            timer = setTimeout(next, this.options.sleep * 5)
+            timer = setTimeout(next, this.options.sleep * 1000 * 5)
             return
           }
-          if (result === null) {
-            timer = setTimeout(next, this.options.sleep)
+          if (result === null || result === undefined) {
+            timer = setTimeout(next, this.options.sleep * 1000)
             return
           }
           if (this.options.debug) {
-            console.log('xqueue/src/index.ts:253 lpop', result)
+            console.log('xqueue/src/index.ts:269 lpop', result)
           }
           try {
             let content =
@@ -239,7 +254,7 @@ export class Emitter {
             fn(content)
           } catch (ex) {
             if (this.options.debug) {
-              console.log('xqueue/src/index.ts:263', ex)
+              console.log('xqueue/src/index.ts:279', ex)
             }
           } finally {
             next()
@@ -247,7 +262,7 @@ export class Emitter {
         }
       )
     }
-    timer = setTimeout(next, this.options.sleep)
+    timer = setTimeout(next, this.options.sleep * 1000)
     let instance = {
       get freed(): boolean {
         return freed

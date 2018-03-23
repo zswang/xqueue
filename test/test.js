@@ -2,6 +2,7 @@ const redis = require('redis')
 const fs = require('fs')
 const assert = require('should')
 const xqueue = require('../')
+
 describe('base', () => {
   let redisClient = redis.createClient(process.env.REDIS_CONNECT_TEST)
   let emitter = new xqueue.Emitter({
@@ -125,13 +126,17 @@ describe('dataType is string', () => {
   it('listener exists', done => {
     let instance = emitter.on(type, encoding, reply => {
       assert.equal(reply, 'hello3')
+      instance.stop()
       done(null)
     })
     emitter.emit(type, 'hello3')
   })
 })
 
-describe('coverage', () => {
+describe('coverage', function() {
+  this.timeout(5000)
+
+  let instances = []
   it('smembers error', done => {
     let redisClient = {
       smembers(key, callback) {
@@ -290,15 +295,157 @@ describe('coverage', () => {
       },
     }
 
-    new xqueue.Emitter({
+    instances.push(
+      new xqueue.Emitter({
+        redisClient: redisClient,
+        debug: true,
+      }).on('error', 'process', () => {})
+    )
+
+    instances.push(
+      new xqueue.Emitter({
+        redisClient: redisClient,
+      }).on('error', 'process', () => {})
+    )
+
+    setTimeout(() => {
+      let item
+      while ((item = instances.pop())) {
+        item.stop()
+      }
+      done(null)
+    }, 1000)
+  })
+
+  it('expire', done => {
+    let redisClient = {
+      setex(key, expire, callback) {
+        assert.equal(expire, 1)
+      },
+      sadd(key, field) {
+        assert.equal('xqueue:emitter:listener:user-create', key)
+        assert.equal('process', field)
+      },
+      lpop(key, callback) {
+        callback(null, null)
+      },
+    }
+
+    instances.push(
+      new xqueue.Emitter({
+        redisClient: redisClient,
+        expire: 1,
+        sleep: 0.5,
+      }).on('user-create', 'process', () => {})
+    )
+
+    setTimeout(() => {
+      let item
+      while ((item = instances.pop())) {
+        item.stop()
+      }
+      done()
+    }, 2000)
+  })
+
+  it('json parse error', done => {
+    let count = 10
+    let data = ['#', '{"name":"tom"}']
+    let redisClient = {
+      setex(key, expire, callback) {
+        assert.equal(expire, 60 * 60)
+      },
+      sadd(key, field) {
+        assert.equal('xqueue:emitter:listener:user-create', key)
+        assert.equal('process', field)
+      },
+      lpop(key, callback) {
+        callback(null, data.pop())
+      },
+    }
+
+    instances.push(
+      new xqueue.Emitter({
+        redisClient: redisClient,
+      }).on('user-create', 'process', data => {
+        assert.equal(JSON.stringify(data), '{"name":"tom"}')
+      })
+    )
+
+    setTimeout(() => {
+      let item
+      while ((item = instances.pop())) {
+        item.stop()
+      }
+      done(null)
+    }, 2000)
+  })
+
+  it('json parse error debug', done => {
+    let count = 10
+    let data = ['#', '{"name":"tom"}']
+    let redisClient = {
+      setex(key, expire, callback) {
+        assert.equal(expire, 60 * 60)
+      },
+      sadd(key, field) {
+        assert.equal('xqueue:emitter:listener:user-create', key)
+        assert.equal('process', field)
+      },
+      lpop(key, callback) {
+        callback(null, data.pop())
+      },
+    }
+
+    instances.push(
+      new xqueue.Emitter({
+        redisClient: redisClient,
+        debug: true,
+      }).on('user-create', 'process', data => {
+        assert.equal(JSON.stringify(data), '{"name":"tom"}')
+      })
+    )
+
+    setTimeout(() => {
+      let item
+      while ((item = instances.pop())) {
+        item.stop()
+      }
+      done(null)
+    }, 2000)
+  })
+
+  it('emit queue error', done => {
+    let count = 1
+    let redisClient = {
+      smembers(key, callback) {
+        callback(null, ['process'])
+      },
+      exists(key, callback) {
+        callback(null, 0)
+      },
+      srem(key, field, callback) {
+        assert.equal(key, 'xqueue:emitter:listener:create-user')
+        assert.equal(field, 'process')
+        if (count-- <= 0) {
+          callback('srem error')
+        } else {
+          callback(null)
+        }
+      },
+    }
+
+    let emitter = new xqueue.Emitter({
       redisClient: redisClient,
       debug: true,
-    }).on('error', 'process', () => {})
+    })
 
-    new xqueue.Emitter({
-      redisClient: redisClient,
-    }).on('error', 'process', () => {})
-
-    setTimeout(done, 1000)
+    emitter.emit('create-user', { tom: 123 }).then(keys => {
+      assert.equal(JSON.stringify(keys), '[{"command":"srem","encoding":"process","result":0}]')
+    })
+    emitter.emit('create-user', { tom: 123 }).catch(err => {
+      assert.equal('srem error', err)
+      done()
+    })
   })
 })

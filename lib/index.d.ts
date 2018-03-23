@@ -14,23 +14,23 @@ export interface IEmitterOptions {
      */
     redisClient: string | redis.RedisClient;
     /**
-     * 数据类型
+     * 数据类型 The default value is 'json'
      */
-    dataType: 'json' | 'string';
+    dataType?: 'json' | 'string';
     /**
      * 键值前缀
      */
     prefix?: string;
     /**
-     * 读取到空队列的空闲时间，单位：毫秒
+     * 读取到空队列的空闲时间，单位：秒 The default value is 1
      */
     sleep?: number;
     /**
-     * 队列有效期，单位：秒
+     * 队列有效期，单位：秒 The default value is 60 * 60
      */
     expire?: number;
     /**
-     * 是否打印调试信息
+     * 是否打印调试信息 The default value is false
      */
     debug?: boolean;
 }
@@ -40,12 +40,20 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.1.0
- * @date 2018-03-22
+ * @version 0.1.1
+ * @date 2018-03-23
  */
+export interface IEmitReturn {
+    command: string;
+    encoding: string;
+    result: number;
+}
 export declare class Emitter {
     options: IEmitterOptions;
-    buffer: {
+    /**
+     * 处理队列
+     */
+    emitQueue: {
         type: string;
         data: object;
         resolve: Function;
@@ -60,7 +68,7 @@ export declare class Emitter {
      * @param type 事件类型
      * @param data 数据
      */
-    emit(type: string, data: object): Promise<any>;
+    emit(type: string, data: object): Promise<IEmitReturn[]>;
     /**
      * 接收事件
      *
