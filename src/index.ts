@@ -1,7 +1,11 @@
 import * as redis from 'redis'
 
+export interface IDoneHandler {
+  (success?: boolean)
+}
+
 export interface IProcessHandler {
-  (data: object | string, done?: Function)
+  (data: object | string, done?: IDoneHandler)
 }
 
 export interface IProcessInstance {
@@ -282,7 +286,13 @@ export class Emitter {
             return
           }
           if (fn.length >= 2) {
-            fn(content, next)
+            fn(content, (success: boolean) => {
+              if (success) {
+                next()
+              } else {
+                setTimeout(next, this.options.sleep * 1000)
+              }
+            })
           } else {
             fn(content)
             next()
@@ -309,7 +319,7 @@ export class Emitter {
 
   /**
    * 断开数据库连接
-   * @param flush 
+   * @param flush
    */
   end(flush?: boolean) {
     if (typeof this.options.redisClient === 'string') {

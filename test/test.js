@@ -149,7 +149,7 @@ describe('callback done', () => {
         instance.stop()
         done(null)
       }
-      next()
+      next(reply === 'hello4')
     })
     emitter.emit(type, 'hello4')
     emitter.emit(type, 'hello5')

@@ -1,6 +1,9 @@
 import * as redis from 'redis'
+export interface IDoneHandler {
+  (success?: boolean)
+}
 export interface IProcessHandler {
-  (data: object | string, done?: Function)
+  (data: object | string, done?: IDoneHandler)
 }
 export interface IProcessInstance {
   readonly freed: boolean
@@ -38,7 +41,7 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.1.2
+ * @version 0.1.3
  * @date 2018-04-02
  */
 export interface IEmitReturn {
@@ -118,7 +121,7 @@ export class Emitter {
         (err, results) => {
           if (err) {
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:140', err)
+              console.error('xqueue/src/index.ts:144', err)
             }
             reject(err)
             next()
@@ -132,7 +135,7 @@ export class Emitter {
                   (err, result) => {
                     if (err) {
                       if (this.options.debug) {
-                        console.error('xqueue/src/index.ts:154', err)
+                        console.error('xqueue/src/index.ts:158', err)
                       }
                       reject(err)
                       next()
@@ -146,7 +149,7 @@ export class Emitter {
                         err => {
                           if (err) {
                             if (this.options.debug) {
-                              console.error('xqueue/src/index.ts:168', err)
+                              console.error('xqueue/src/index.ts:172', err)
                             }
                             reject(err)
                             next()
@@ -171,7 +174,7 @@ export class Emitter {
                       (err, result) => {
                         if (err) {
                           if (this.options.debug) {
-                            console.error('xqueue/src/index.ts:193', err)
+                            console.error('xqueue/src/index.ts:197', err)
                           }
                           reject(err)
                           next()
@@ -234,7 +237,7 @@ export class Emitter {
         (err, result) => {
           if (err) {
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:259', err)
+              console.error('xqueue/src/index.ts:263', err)
             }
             timer = setTimeout(next, this.options.sleep * 1000 * 5)
             return
@@ -244,7 +247,7 @@ export class Emitter {
             return
           }
           if (this.options.debug) {
-            console.log('xqueue/src/index.ts:269 lpop', result)
+            console.log('xqueue/src/index.ts:273 lpop', result)
           }
           let content
           try {
@@ -255,12 +258,18 @@ export class Emitter {
           } catch (ex) {
             setTimeout(next, this.options.sleep * 1000)
             if (this.options.debug) {
-              console.log('xqueue/src/index.ts:280', ex)
+              console.log('xqueue/src/index.ts:284', ex)
             }
             return
           }
           if (fn.length >= 2) {
-            fn(content, next)
+            fn(content, (success: boolean) => {
+              if (success) {
+                next()
+              } else {
+                setTimeout(next, this.options.sleep * 1000)
+              }
+            })
           } else {
             fn(content)
             next()
@@ -285,7 +294,7 @@ export class Emitter {
   }
   /**
    * 断开数据库连接
-   * @param flush 
+   * @param flush
    */
   end(flush?: boolean) {
     if (typeof this.options.redisClient === 'string') {

@@ -1,6 +1,9 @@
 import * as redis from 'redis';
+export interface IDoneHandler {
+    (success?: boolean): any;
+}
 export interface IProcessHandler {
-    (data: object | string, done?: Function): any;
+    (data: object | string, done?: IDoneHandler): any;
 }
 export interface IProcessInstance {
     readonly freed: boolean;
@@ -40,7 +43,7 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.1.2
+ * @version 0.1.3
  * @date 2018-04-02
  */
 export interface IEmitReturn {
