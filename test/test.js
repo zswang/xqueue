@@ -133,6 +133,29 @@ describe('dataType is string', () => {
   })
 })
 
+describe('callback done', () => {
+  let redisClient = redis.createClient(process.env.REDIS_CONNECT_TEST)
+
+  let emitter = new xqueue.Emitter({
+    redisClient: redisClient,
+    dataType: 'string',
+  })
+  let type = 'test_buffer'
+  let encoding = 'log'
+
+  it('listener exists', done => {
+    let instance = emitter.on(type, encoding, (reply, next) => {
+      if (reply === 'hello5') {
+        instance.stop()
+        done(null)
+      }
+      next()
+    })
+    emitter.emit(type, 'hello4')
+    emitter.emit(type, 'hello5')
+  })
+})
+
 describe('coverage', function() {
   this.timeout(5000)
 
@@ -441,7 +464,10 @@ describe('coverage', function() {
     })
 
     emitter.emit('create-user', { tom: 123 }).then(keys => {
-      assert.equal(JSON.stringify(keys), '[{"command":"srem","encoding":"process","result":0}]')
+      assert.equal(
+        JSON.stringify(keys),
+        '[{"command":"srem","encoding":"process","result":0}]'
+      )
     })
     emitter.emit('create-user', { tom: 123 }).catch(err => {
       assert.equal('srem error', err)

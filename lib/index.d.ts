@@ -1,6 +1,6 @@
 import * as redis from 'redis';
 export interface IProcessHandler {
-    (data: object | string): any;
+    (data: object | string, done?: Function): any;
 }
 export interface IProcessInstance {
     readonly freed: boolean;
@@ -40,8 +40,8 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.1.1
- * @date 2018-03-23
+ * @version 0.1.2
+ * @date 2018-04-02
  */
 export interface IEmitReturn {
     command: string;
@@ -77,5 +77,9 @@ export declare class Emitter {
      * @param fn 回调函数
      */
     on(type: string, encoding: string, fn: IProcessHandler): IProcessInstance;
+    /**
+     * 断开数据库连接
+     * @param flush
+     */
     end(flush?: boolean): void;
 }

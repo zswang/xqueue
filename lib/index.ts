@@ -1,6 +1,6 @@
 import * as redis from 'redis'
 export interface IProcessHandler {
-  (data: object | string)
+  (data: object | string, done?: Function)
 }
 export interface IProcessInstance {
   readonly freed: boolean
@@ -38,8 +38,8 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.1.1
- * @date 2018-03-23
+ * @version 0.1.2
+ * @date 2018-04-02
  */
 export interface IEmitReturn {
   command: string
@@ -246,17 +246,23 @@ export class Emitter {
           if (this.options.debug) {
             console.log('xqueue/src/index.ts:269 lpop', result)
           }
+          let content
           try {
-            let content =
+            content =
               this.options.dataType === 'json'
                 ? JSON.parse(result)
                 : String(result)
-            fn(content)
           } catch (ex) {
+            setTimeout(next, this.options.sleep * 1000)
             if (this.options.debug) {
-              console.log('xqueue/src/index.ts:279', ex)
+              console.log('xqueue/src/index.ts:280', ex)
             }
-          } finally {
+            return
+          }
+          if (fn.length >= 2) {
+            fn(content, next)
+          } else {
+            fn(content)
             next()
           }
         }
@@ -277,6 +283,10 @@ export class Emitter {
     }
     return instance
   }
+  /**
+   * 断开数据库连接
+   * @param flush 
+   */
   end(flush?: boolean) {
     if (typeof this.options.redisClient === 'string') {
       this.redisClient.end(flush)
