@@ -5,7 +5,7 @@ export interface IDoneHandler {
 }
 
 export interface IProcessHandler {
-  (data: object | string, done?: IDoneHandler)
+  (data: any | string, done?: IDoneHandler)
 }
 
 export interface IProcessInstance {
@@ -103,7 +103,7 @@ export class Emitter {
    * @param type 事件类型
    * @param data 数据
    */
-  emit(type: string, data: object): Promise<IEmitReturn[]> {
+  emit(type: string, data: any): Promise<IEmitReturn[]> {
     // 队列发送中
     if (this.emitting) {
       return new Promise((resolve, reject) => {

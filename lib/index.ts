@@ -3,7 +3,7 @@ export interface IDoneHandler {
   (success?: boolean)
 }
 export interface IProcessHandler {
-  (data: object | string, done?: IDoneHandler)
+  (data: any | string, done?: IDoneHandler)
 }
 export interface IProcessInstance {
   readonly freed: boolean
@@ -42,7 +42,7 @@ export interface IEmitterOptions {
  * @author
  *   zswang (http://weibo.com/zswang)
  * @version 0.1.3
- * @date 2018-04-02
+ * @date 2018-06-29
  */
 export interface IEmitReturn {
   command: string
@@ -85,7 +85,7 @@ export class Emitter {
    * @param type 事件类型
    * @param data 数据
    */
-  emit(type: string, data: object): Promise<IEmitReturn[]> {
+  emit(type: string, data: any): Promise<IEmitReturn[]> {
     // 队列发送中
     if (this.emitting) {
       return new Promise((resolve, reject) => {

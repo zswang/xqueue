@@ -1,5 +1,4 @@
 const redis = require('redis')
-const fs = require('fs')
 const assert = require('should')
 const xqueue = require('../')
 
