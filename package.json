@@ -1,6 +1,6 @@
 {
   "name": "xqueue",
-  "version": "0.1.5",
+  "version": "0.1.9",
   "description": "Emitter at Redis queue",
   "main": "lib/index",
   "typings": "lib/index.d.ts",
@@ -8,7 +8,8 @@
     "test": "istanbul cover --hook-run-in-context node_modules/mocha/bin/_mocha -- -R spec",
     "example": "gulp example",
     "mocha": "mocha",
-    "dist": "node version.js && gulp dist"
+    "_dist": "gulp dist",
+    "dist": "node version.js && npm run _dist"
   },
   "repository": {
     "type": "git",

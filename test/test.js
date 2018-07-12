@@ -126,9 +126,21 @@ describe('dataType is string', () => {
     let instance = emitter.on(type, encoding, reply => {
       assert.equal(reply, 'hello3')
       instance.stop()
-      done(null)
     })
-    emitter.emit(type, 'hello3')
+    emitter
+      .emit(type, 'hello3')
+      .then(() => {
+        return emitter.describe(type)
+      })
+      .then(reply => {
+        assert.equal(
+          reply['xqueue:emitter:encoding:test_buffer:log:ttl'] > 1000,
+          true
+        )
+        assert.equal(reply['xqueue:emitter:encoding:test_buffer:log'], 1)
+
+        done(null)
+      })
   })
 })
 
@@ -181,6 +193,75 @@ describe('coverage', function() {
       .emit('error', 'error')
       .catch(err => {
         assert.equal(err, 'smembers error')
+      })
+
+    new xqueue.Emitter({
+      redisClient: redisClient,
+      debug: true,
+    })
+      .describe('error')
+      .catch(err => {
+        assert.equal(err, 'smembers error')
+      })
+
+    new xqueue.Emitter({
+      redisClient: redisClient,
+    })
+      .describe('error')
+      .catch(err => {
+        assert.equal(err, 'smembers error')
+        done(null)
+      })
+  })
+
+  it('ttl error', done => {
+    let redisClient = redis.createClient(process.env.REDIS_CONNECT_TEST)
+    redisClient.ttl = (key, callback) => {
+      callback('ttl error')
+    }
+
+    let emitter = new xqueue.Emitter({
+      redisClient: redisClient,
+      debug: true,
+    })
+    emitter.on(`ttl`, 'test', () => {})
+
+    emitter.describe('ttl').catch(err => {
+      assert.equal(err, 'ttl error')
+    })
+
+    new xqueue.Emitter({
+      redisClient: redisClient,
+    })
+      .describe('ttl')
+      .catch(err => {
+        assert.equal(err, 'ttl error')
+        done(null)
+      })
+  })
+
+  it('llen error', done => {
+    let redisClient = redis.createClient(process.env.REDIS_CONNECT_TEST)
+    redisClient.llen = (key, callback) => {
+      callback('llen error')
+    }
+
+    let emitter = new xqueue.Emitter({
+      redisClient: redisClient,
+      debug: true,
+    })
+    emitter.on(`llen`, 'test', () => {})
+
+    emitter.describe('llen').catch(err => {
+      assert.equal(err, 'llen error')
+    })
+
+    new xqueue.Emitter({
+      redisClient: redisClient,
+    })
+      .describe('llen')
+      .catch(err => {
+        assert.equal(err, 'llen error')
         done(null)
       })
   })

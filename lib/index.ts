@@ -41,13 +41,16 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.1.5
- * @date 2018-06-29
+ * @version 0.1.9
+ * @date 2018-07-12
  */
 export interface IEmitReturn {
   command: string
   encoding: string
   result: number
+}
+export interface IDescribeReturn {
+  listener: { [key: string]: string }
 }
 export class Emitter {
   options: IEmitterOptions
@@ -121,7 +124,7 @@ export class Emitter {
         (err, results) => {
           if (err) {
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:144', err)
+              console.error('xqueue/src/index.ts:148', err)
             }
             reject(err)
             next()
@@ -135,7 +138,7 @@ export class Emitter {
                   (err, result) => {
                     if (err) {
                       if (this.options.debug) {
-                        console.error('xqueue/src/index.ts:158', err)
+                        console.error('xqueue/src/index.ts:162', err)
                       }
                       reject(err)
                       next()
@@ -149,7 +152,7 @@ export class Emitter {
                         err => {
                           if (err) {
                             if (this.options.debug) {
-                              console.error('xqueue/src/index.ts:172', err)
+                              console.error('xqueue/src/index.ts:176', err)
                             }
                             reject(err)
                             next()
@@ -174,7 +177,7 @@ export class Emitter {
                       (err, result) => {
                         if (err) {
                           if (this.options.debug) {
-                            console.error('xqueue/src/index.ts:197', err)
+                            console.error('xqueue/src/index.ts:201', err)
                           }
                           reject(err)
                           next()
@@ -237,7 +240,7 @@ export class Emitter {
         (err, result) => {
           if (err) {
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:263', err)
+              console.error('xqueue/src/index.ts:267', err)
             }
             timer = setTimeout(next, this.options.sleep * 1000 * 5)
             return
@@ -247,7 +250,7 @@ export class Emitter {
             return
           }
           if (this.options.debug) {
-            console.log('xqueue/src/index.ts:273 lpop', result)
+            console.log('xqueue/src/index.ts:277 lpop', result)
           }
           let content
           try {
@@ -258,7 +261,7 @@ export class Emitter {
           } catch (ex) {
             setTimeout(next, this.options.sleep * 1000)
             if (this.options.debug) {
-              console.log('xqueue/src/index.ts:284', ex)
+              console.log('xqueue/src/index.ts:288', ex)
             }
             return
           }
@@ -300,5 +303,74 @@ export class Emitter {
     if (typeof this.options.redisClient === 'string') {
       this.redisClient.end(flush)
     }
+  }
+  describe(type: string): Promise<IDescribeReturn> {
+    return new Promise((resolve, reject) => {
+      // 获取该类型监听类型列表
+      this.redisClient.smembers(
+        `${this.options.prefix}:listener:${type}`,
+        (err, results) => {
+          if (err) {
+            reject(err)
+            if (this.options.debug) {
+              console.error('xqueue/src/index.ts:343', err)
+            }
+            return
+          }
+          resolve(Promise.all(
+            results
+              .map(encoding => {
+                return new Promise((resolve, reject) => {
+                  this.redisClient.ttl(
+                    `${this.options.prefix}:encoding:${type}:${encoding}:ttl`,
+                    (err, reply) => {
+                      if (err) {
+                        if (this.options.debug) {
+                          console.error('xqueue/src/index.ts:357', err)
+                        }
+                        reject(err)
+                        return
+                      }
+                      resolve({
+                        [`${
+                          this.options.prefix
+                        }:encoding:${type}:${encoding}:ttl`]: reply,
+                      })
+                    }
+                  )
+                })
+              })
+              .concat(
+                results.map(encoding => {
+                  return new Promise((resolve, reject) => {
+                    this.redisClient.llen(
+                      `${this.options.prefix}:encoding:${type}:${encoding}`,
+                      (err, reply) => {
+                        if (err) {
+                          if (this.options.debug) {
+                            console.error('xqueue/src/index.ts:379', err)
+                          }
+                          reject(err)
+                          return
+                        }
+                        resolve({
+                          [`${
+                            this.options.prefix
+                          }:encoding:${type}:${encoding}`]: reply,
+                        })
+                      }
+                    )
+                  })
+                })
+              )
+          ).then(items => {
+            return items.reduce((obj, item) => {
+              obj = { ...obj, ...item }
+              return obj
+            }, {})
+          }) as Promise<IDescribeReturn>)
+        }
+      )
+    })
   }
 }

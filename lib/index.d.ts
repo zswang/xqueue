@@ -43,13 +43,18 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.1.5
- * @date 2018-06-29
+ * @version 0.1.9
+ * @date 2018-07-12
  */
 export interface IEmitReturn {
     command: string;
     encoding: string;
     result: number;
+}
+export interface IDescribeReturn {
+    listener: {
+        [key: string]: string;
+    };
 }
 export declare class Emitter {
     options: IEmitterOptions;
@@ -85,4 +90,5 @@ export declare class Emitter {
      * @param flush
      */
     end(flush?: boolean): void;
+    describe(type: string): Promise<IDescribeReturn>;
 }

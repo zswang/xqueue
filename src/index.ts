@@ -65,6 +65,10 @@ export interface IEmitReturn {
   result: number
 }
 
+export interface IDescribeReturn {
+  listener: { [key: string]: string }
+}
+
 export class Emitter {
   options: IEmitterOptions
   /**
@@ -325,5 +329,76 @@ export class Emitter {
     if (typeof this.options.redisClient === 'string') {
       this.redisClient.end(flush)
     }
+  }
+
+  describe(type: string): Promise<IDescribeReturn> {
+    return new Promise((resolve, reject) => {
+      // 获取该类型监听类型列表
+      this.redisClient.smembers(
+        `${this.options.prefix}:listener:${type}`,
+        (err, results) => {
+          if (err) {
+            reject(err)
+            if (this.options.debug) {
+              console.error('^linenum', err)
+            }
+            return
+          }
+
+          resolve(Promise.all(
+            results
+              .map(encoding => {
+                return new Promise((resolve, reject) => {
+                  this.redisClient.ttl(
+                    `${this.options.prefix}:encoding:${type}:${encoding}:ttl`,
+                    (err, reply) => {
+                      if (err) {
+                        if (this.options.debug) {
+                          console.error('^linenum', err)
+                        }
+                        reject(err)
+                        return
+                      }
+                      resolve({
+                        [`${
+                          this.options.prefix
+                        }:encoding:${type}:${encoding}:ttl`]: reply,
+                      })
+                    }
+                  )
+                })
+              })
+              .concat(
+                results.map(encoding => {
+                  return new Promise((resolve, reject) => {
+                    this.redisClient.llen(
+                      `${this.options.prefix}:encoding:${type}:${encoding}`,
+                      (err, reply) => {
+                        if (err) {
+                          if (this.options.debug) {
+                            console.error('^linenum', err)
+                          }
+                          reject(err)
+                          return
+                        }
+                        resolve({
+                          [`${
+                            this.options.prefix
+                          }:encoding:${type}:${encoding}`]: reply,
+                        })
+                      }
+                    )
+                  })
+                })
+              )
+          ).then(items => {
+            return items.reduce((obj, item) => {
+              obj = { ...obj, ...item }
+              return obj
+            }, {})
+          }) as Promise<IDescribeReturn>)
+        }
+      )
+    })
   }
 }
