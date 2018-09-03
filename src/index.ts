@@ -108,6 +108,10 @@ export class Emitter {
    * @param data 数据
    */
   emit(type: string, data: any): Promise<IEmitReturn[]> {
+    if (this.options.debug) {
+      console.log('^linenum emit %s - %j', type, data)
+    }
+
     // 队列发送中
     if (this.emitting) {
       return new Promise((resolve, reject) => {
@@ -274,7 +278,7 @@ export class Emitter {
             return
           }
           if (this.options.debug) {
-            console.log('^linenum lpop', result)
+            console.log('^linenum lpop %j', result)
           }
           let content
           try {

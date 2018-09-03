@@ -43,8 +43,8 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.1.9
- * @date 2018-07-12
+ * @version 0.1.11
+ * @date 2018-09-03
  */
 export interface IEmitReturn {
     command: string;

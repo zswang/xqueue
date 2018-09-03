@@ -41,8 +41,8 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.1.9
- * @date 2018-07-12
+ * @version 0.1.11
+ * @date 2018-09-03
  */
 export interface IEmitReturn {
   command: string
@@ -89,6 +89,9 @@ export class Emitter {
    * @param data 数据
    */
   emit(type: string, data: any): Promise<IEmitReturn[]> {
+    if (this.options.debug) {
+      console.log('xqueue/src/index.ts:112 emit %s - %j', type, data)
+    }
     // 队列发送中
     if (this.emitting) {
       return new Promise((resolve, reject) => {
@@ -124,7 +127,7 @@ export class Emitter {
         (err, results) => {
           if (err) {
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:148', err)
+              console.error('xqueue/src/index.ts:152', err)
             }
             reject(err)
             next()
@@ -138,7 +141,7 @@ export class Emitter {
                   (err, result) => {
                     if (err) {
                       if (this.options.debug) {
-                        console.error('xqueue/src/index.ts:162', err)
+                        console.error('xqueue/src/index.ts:166', err)
                       }
                       reject(err)
                       next()
@@ -152,7 +155,7 @@ export class Emitter {
                         err => {
                           if (err) {
                             if (this.options.debug) {
-                              console.error('xqueue/src/index.ts:176', err)
+                              console.error('xqueue/src/index.ts:180', err)
                             }
                             reject(err)
                             next()
@@ -177,7 +180,7 @@ export class Emitter {
                       (err, result) => {
                         if (err) {
                           if (this.options.debug) {
-                            console.error('xqueue/src/index.ts:201', err)
+                            console.error('xqueue/src/index.ts:205', err)
                           }
                           reject(err)
                           next()
@@ -240,7 +243,7 @@ export class Emitter {
         (err, result) => {
           if (err) {
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:267', err)
+              console.error('xqueue/src/index.ts:271', err)
             }
             timer = setTimeout(next, this.options.sleep * 1000 * 5)
             return
@@ -250,7 +253,7 @@ export class Emitter {
             return
           }
           if (this.options.debug) {
-            console.log('xqueue/src/index.ts:277 lpop', result)
+            console.log('xqueue/src/index.ts:281 lpop %j', result)
           }
           let content
           try {
@@ -261,7 +264,7 @@ export class Emitter {
           } catch (ex) {
             setTimeout(next, this.options.sleep * 1000)
             if (this.options.debug) {
-              console.log('xqueue/src/index.ts:288', ex)
+              console.log('xqueue/src/index.ts:292', ex)
             }
             return
           }
@@ -313,7 +316,7 @@ export class Emitter {
           if (err) {
             reject(err)
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:343', err)
+              console.error('xqueue/src/index.ts:347', err)
             }
             return
           }
@@ -326,7 +329,7 @@ export class Emitter {
                     (err, reply) => {
                       if (err) {
                         if (this.options.debug) {
-                          console.error('xqueue/src/index.ts:357', err)
+                          console.error('xqueue/src/index.ts:361', err)
                         }
                         reject(err)
                         return
@@ -348,7 +351,7 @@ export class Emitter {
                       (err, reply) => {
                         if (err) {
                           if (this.options.debug) {
-                            console.error('xqueue/src/index.ts:379', err)
+                            console.error('xqueue/src/index.ts:383', err)
                           }
                           reject(err)
                           return

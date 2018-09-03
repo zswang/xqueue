@@ -1,6 +1,6 @@
 {
   "name": "xqueue",
-  "version": "0.1.9",
+  "version": "0.1.11",
   "description": "Emitter at Redis queue",
   "main": "lib/index",
   "typings": "lib/index.d.ts",
