@@ -41,8 +41,8 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.1.11
- * @date 2018-09-03
+ * @version 0.1.22
+ * @date 2018-10-09
  */
 export interface IEmitReturn {
   command: string
@@ -53,27 +53,25 @@ export interface IDescribeReturn {
   listener: { [key: string]: string }
 }
 export class Emitter {
-  options: IEmitterOptions
+  private options: IEmitterOptions
   /**
    * 处理队列
    */
-  emitQueue: {
+  private emitQueue: {
     type: string
     data: object
     resolve: Function
     reject: Function
   }[] = []
-  emitting: boolean = false
-  redisClient: redis.RedisClient
+  private emitting: boolean = false
+  private redisClient: redis.RedisClient
   constructor(options: IEmitterOptions) {
     this.options = {
-      ...{
-        prefix: 'xqueue:emitter',
-        sleep: 1,
-        expire: 60 * 60,
-        debug: false,
-        dataType: 'json',
-      },
+      prefix: 'xqueue:emitter',
+      sleep: 1,
+      expire: 60 * 60,
+      debug: false,
+      dataType: 'json',
       ...options,
     }
     if (typeof options.redisClient === 'string') {
@@ -90,7 +88,7 @@ export class Emitter {
    */
   emit(type: string, data: any): Promise<IEmitReturn[]> {
     if (this.options.debug) {
-      console.log('xqueue/src/index.ts:112 emit %s - %j', type, data)
+      console.log('xqueue/src/index.ts:110 emit %s - %j', type, data)
     }
     // 队列发送中
     if (this.emitting) {
@@ -127,7 +125,7 @@ export class Emitter {
         (err, results) => {
           if (err) {
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:152', err)
+              console.error('xqueue/src/index.ts:150', err)
             }
             reject(err)
             next()
@@ -141,7 +139,7 @@ export class Emitter {
                   (err, result) => {
                     if (err) {
                       if (this.options.debug) {
-                        console.error('xqueue/src/index.ts:166', err)
+                        console.error('xqueue/src/index.ts:164', err)
                       }
                       reject(err)
                       next()
@@ -155,7 +153,7 @@ export class Emitter {
                         err => {
                           if (err) {
                             if (this.options.debug) {
-                              console.error('xqueue/src/index.ts:180', err)
+                              console.error('xqueue/src/index.ts:178', err)
                             }
                             reject(err)
                             next()
@@ -180,7 +178,7 @@ export class Emitter {
                       (err, result) => {
                         if (err) {
                           if (this.options.debug) {
-                            console.error('xqueue/src/index.ts:205', err)
+                            console.error('xqueue/src/index.ts:203', err)
                           }
                           reject(err)
                           next()
@@ -243,7 +241,7 @@ export class Emitter {
         (err, result) => {
           if (err) {
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:271', err)
+              console.error('xqueue/src/index.ts:269', err)
             }
             timer = setTimeout(next, this.options.sleep * 1000 * 5)
             return
@@ -253,7 +251,7 @@ export class Emitter {
             return
           }
           if (this.options.debug) {
-            console.log('xqueue/src/index.ts:281 lpop %j', result)
+            console.log('xqueue/src/index.ts:279 lpop %j', result)
           }
           let content
           try {
@@ -264,7 +262,7 @@ export class Emitter {
           } catch (ex) {
             setTimeout(next, this.options.sleep * 1000)
             if (this.options.debug) {
-              console.log('xqueue/src/index.ts:292', ex)
+              console.log('xqueue/src/index.ts:290', ex)
             }
             return
           }
@@ -316,7 +314,7 @@ export class Emitter {
           if (err) {
             reject(err)
             if (this.options.debug) {
-              console.error('xqueue/src/index.ts:347', err)
+              console.error('xqueue/src/index.ts:345', err)
             }
             return
           }
@@ -329,7 +327,7 @@ export class Emitter {
                     (err, reply) => {
                       if (err) {
                         if (this.options.debug) {
-                          console.error('xqueue/src/index.ts:361', err)
+                          console.error('xqueue/src/index.ts:359', err)
                         }
                         reject(err)
                         return
@@ -351,7 +349,7 @@ export class Emitter {
                       (err, reply) => {
                         if (err) {
                           if (this.options.debug) {
-                            console.error('xqueue/src/index.ts:383', err)
+                            console.error('xqueue/src/index.ts:381', err)
                           }
                           reject(err)
                           return

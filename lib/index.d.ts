@@ -43,8 +43,8 @@ export interface IEmitterOptions {
  * Emitter at Redis queue
  * @author
  *   zswang (http://weibo.com/zswang)
- * @version 0.1.11
- * @date 2018-09-03
+ * @version 0.1.22
+ * @date 2018-10-09
  */
 export interface IEmitReturn {
     command: string;
@@ -57,18 +57,13 @@ export interface IDescribeReturn {
     };
 }
 export declare class Emitter {
-    options: IEmitterOptions;
+//     private options;
     /**
      * 处理队列
      */
-    emitQueue: {
-        type: string;
-        data: object;
-        resolve: Function;
-        reject: Function;
-    }[];
-    emitting: boolean;
-    redisClient: redis.RedisClient;
+//     private emitQueue;
+//     private emitting;
+//     private redisClient;
     constructor(options: IEmitterOptions);
     /**
      * 派发事件

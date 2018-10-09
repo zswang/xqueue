@@ -11,8 +11,8 @@ const merge2 = require('merge2')
 const pkg = require('./package.json')
 const replace = require('gulp-replace')
 
-gulp.task('build', function() {
-  var tsResult = gulp
+function build() {
+  const tsResult = gulp
     .src('./src/*.ts')
     .pipe(
       linenum({
@@ -29,11 +29,15 @@ gulp.task('build', function() {
     )
 
   return merge2([
-    tsResult.dts.pipe(gulp.dest('./lib')),
+    tsResult.dts
+      .pipe(replace(/^\s*private\s.*;\s*$/gm, '// $&'))
+      .pipe(gulp.dest('./lib')),
     tsResult.js
-      .pipe(replace(/^(\s*)var __assign = /m, '$1/* istanbul ignore next */\n$&'))
+      .pipe(
+        replace(/^(\s*)var __assign = /m, '$1/* istanbul ignore next */\n$&')
+      )
       .pipe(gulp.dest('lib')),
   ])
-})
+}
 
-gulp.task('dist', ['build'])
+gulp.task('dist', gulp.series(build))

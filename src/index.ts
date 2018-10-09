@@ -70,28 +70,26 @@ export interface IDescribeReturn {
 }
 
 export class Emitter {
-  options: IEmitterOptions
+  private options: IEmitterOptions
   /**
    * 处理队列
    */
-  emitQueue: {
+  private emitQueue: {
     type: string
     data: object
     resolve: Function
     reject: Function
   }[] = []
-  emitting: boolean = false
-  redisClient: redis.RedisClient
+  private emitting: boolean = false
+  private redisClient: redis.RedisClient
 
   constructor(options: IEmitterOptions) {
     this.options = {
-      ...{
-        prefix: 'xqueue:emitter',
-        sleep: 1,
-        expire: 60 * 60,
-        debug: false,
-        dataType: 'json',
-      },
+      prefix: 'xqueue:emitter',
+      sleep: 1,
+      expire: 60 * 60,
+      debug: false,
+      dataType: 'json',
       ...options,
     }
     if (typeof options.redisClient === 'string') {
